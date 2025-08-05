@@ -7,7 +7,7 @@ env:
 
 jobs:
   jvm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -20,14 +20,14 @@ jobs:
           - 12
           - 13
           - 14
-          - 15-ea
+          - 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Validate Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v1
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Configure JDK
         uses: actions/setup-java@v1
@@ -46,7 +46,7 @@ jobs:
           path: okio/jvm/japicmp/build/reports/japi.txt
 
   multiplatform:
-    runs-on: macOS-latest
+    runs-on: macOS-14
 
     steps:
       - name: Checkout
@@ -59,9 +59,15 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 14
-
+          
+      - name: Setup Xcode Tools
+        run: |
+          sudo xcode-select --install || true
+          ls -la /usr/lib/libc++* || echo "libc++ not found in /usr/lib"
+          
       - name: Test
         run: |
+          export DYLD_LIBRARY_PATH="/usr/lib:/System/Library/Frameworks/CoreFoundation.framework/Versions/A:$DYLD_LIBRARY_PATH"
           ./gradlew build
 
   publish:
@@ -86,7 +92,7 @@ jobs:
           ORG_GRADLE_PROJECT_SONATYPE_NEXUS_PASSWORD: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
 
   publish-website:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: github.ref == 'refs/heads/master'
     needs: [jvm, multiplatform]
 
@@ -104,8 +110,8 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Prepare docs
-        run: .buildscript/prepare_mkdocs.sh
+      # - name: Prepare docs
+      #   run: .buildscript/prepare_mkdocs.sh
 
       - name: Build mkdocs
         run: |
